@@ -629,9 +629,180 @@
             font-size: 14px;
             opacity: 0.95;
         }
+
+        /* ✅ Estilos para Modal Urgente de Tareas */
+        .urgent-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s;
+        }
+
+        .urgent-modal.active {
+            display: flex;
+        }
+
+        .urgent-modal-content {
+            background: white;
+            padding: 0;
+            border-radius: 20px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: slideDown 0.4s;
+        }
+
+        .urgent-modal-header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .urgent-modal-header h2 {
+            margin: 0;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .urgent-badge {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        .urgent-modal-body {
+            padding: 35px;
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .urgent-modal-body h3 {
+            color: #005baa;
+            font-size: 22px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .task-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .task-item {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 18px 25px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-left: 5px solid #667eea;
+            transition: all 0.3s;
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .task-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .task-item::before {
+            content: "⚡";
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .urgent-modal-footer {
+            padding: 20px 35px;
+            background: #f8f9fa;
+            text-align: center;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .urgent-close-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .urgent-close-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
     </style>
 </head>
 <body>
+    <!-- ✅ Modal Urgente de Tareas -->
+    <div class="urgent-modal" id="urgentTaskModal">
+        <div class="urgent-modal-content">
+            <div class="urgent-modal-header">
+                <h2>
+                    <span style="font-size: 40px;">🚨</span>
+                    TAREAS URGENTES
+                    <span class="urgent-badge">IMPORTANTE</span>
+                </h2>
+            </div>
+            <div class="urgent-modal-body" id="urgentTaskBody">
+                <!-- Contenido dinámico según usuario -->
+            </div>
+            <div class="urgent-modal-footer">
+                <button class="urgent-close-btn" onclick="closeUrgentModal()">
+                    ✓ Entendido
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="login-screen" id="loginScreen">
         <div class="gm-logo" style="margin: 0 auto 25px; width: 90px; height: 90px; font-size: 36px;">GM</div>
         <h2 style="color: #005baa; text-align: center; margin-bottom: 35px; font-size: 28px;">🤖 Sistema Integral IA</h2>
@@ -1473,6 +1644,92 @@
             showDashboard();
         });
 
+        // ✅ TAREAS URGENTES POR USUARIO
+        const urgentTasks = {
+            'iran': {
+                title: 'Iran Arely Gomez Reyes - Líder IA',
+                tasks: [
+                    'AI Strategy + Ejercicio SEMILLA'
+                ]
+            },
+            'luis': {
+                title: 'Luis Guillermo Gallardo Hernandez (Lalito)',
+                tasks: [
+                    'Creación de agente',
+                    'Proyecto FA Blocks'
+                ]
+            },
+            'fernando': {
+                title: 'Fernando Rosales Medina (Fer)',
+                tasks: [
+                    'Creación de agente',
+                    'Power BI',
+                    'Proyecto de FA Blocks'
+                ]
+            },
+            'carlos': {
+                title: 'Carlos Ruben Cedillo Pichardo (Charlie)',
+                tasks: [
+                    'VR',
+                    'Training digital',
+                    'API',
+                    'CP auditoría'
+                ]
+            },
+            'sofia': {
+                title: 'Sofia Guerrero Moreno',
+                tasks: [
+                    'Training',
+                    'PCP',
+                    'Creación de agente'
+                ]
+            },
+            'manuel': {
+                title: 'Manuel Delgado Espinoza',
+                tasks: [
+                    'Creación de agente',
+                    'Avatar'
+                ]
+            }
+        };
+
+        // Función para mostrar el modal urgente
+        function showUrgentTaskModal(userId) {
+            const userTasks = urgentTasks[userId];
+            
+            if (!userTasks) {
+                // Si el usuario no tiene tareas específicas, no mostrar el modal
+                return;
+            }
+
+            const modalBody = document.getElementById('urgentTaskBody');
+            
+            modalBody.innerHTML = `
+                <h3>👤 ${userTasks.title}</h3>
+                <ul class="task-list">
+                    ${userTasks.tasks.map(task => `
+                        <li class="task-item">${task}</li>
+                    `).join('')}
+                </ul>
+            `;
+
+            // Mostrar el modal
+            document.getElementById('urgentTaskModal').classList.add('active');
+        }
+
+        // Función para cerrar el modal
+        function closeUrgentModal() {
+            document.getElementById('urgentTaskModal').classList.remove('active');
+        }
+
+        // Cerrar modal al hacer click fuera de él
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('urgentTaskModal');
+            if (e.target === modal) {
+                closeUrgentModal();
+            }
+        });
+
         function showDashboard() {
             const user = teamMembers[currentUser];
             document.getElementById('loginScreen').style.display = 'none';
@@ -1496,6 +1753,11 @@
                 document.getElementById('supervisorDashboard').style.display = 'none';
                 loadBecarioDashboard();
             }
+
+            // ✅ Mostrar modal de tareas urgentes después de 500ms
+            setTimeout(() => {
+                showUrgentTaskModal(currentUser);
+            }, 500);
         }
 
         function loadBecarioDashboard() {
