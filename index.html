@@ -1210,68 +1210,95 @@
         const gmHolidays = ['01-01', '02-02', '03-16', '04-02', '04-03', '04-04', '05-01', '09-15', '09-16', '10-12', '11-02', '11-16', '12-12', '12-24', '12-25', '12-31'];
         const weekDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
         
-        let teamMembers = JSON.parse(localStorage.getItem('gmTeamMembers')) || defaultTeamMembers;
+        // ✅ CORRECCIÓN 1: Inicializar vacío, se llenará SOLO desde Firebase
+        let teamMembers = {};
         let currentUser = null;
+        let dataLoaded = false; // Flag para saber cuándo terminó la carga inicial
 
 
-        // Inicialización de datos desde Firebase
+        // ✅ CORRECCIÓN: Inicialización mejorada de datos desde Firebase
         function initializeData() {
+            console.log('🔄 Iniciando carga de datos desde Firebase...');
+            
+            let loadCount = 0;
+            const totalLoads = 6;
+            
+            function checkAllLoaded() {
+                loadCount++;
+                console.log(`📊 Progreso de carga: ${loadCount}/${totalLoads}`);
+                if (loadCount >= totalLoads) {
+                    dataLoaded = true;
+                    console.log('✅ Todos los datos cargados desde Firebase');
+                }
+            }
+            
             loadFromFirebase('teamMembers', (data) => {
-                if (data) {
+                if (data && Object.keys(data).length > 0) {
                     teamMembers = data;
+                    console.log('✅ TeamMembers cargados:', Object.keys(data).length, 'miembros');
                 } else {
-                    // Si no hay datos en Firebase, inicializar con el líder predeterminado
-                    teamMembers = {
-                        'iran': {
-                            name: 'Iran Arely Gomez Reyes',
-                            role: 'Líder IA',
-                            isLeader: true,
-                            image: null
-                        }
-                    };
+                    // Primera vez: inicializar con líder predeterminado
+                    console.log('⚠️ No hay teamMembers en Firebase, inicializando con datos por defecto');
+                    teamMembers = defaultTeamMembers;
                     saveToFirebase('teamMembers', teamMembers);
                 }
                 updateLoginOptions();
+                checkAllLoaded();
             });
 
             loadFromFirebase('activities', (data) => {
                 activities = data || [];
+                console.log('✅ Activities cargadas:', activities.length);
+                checkAllLoaded();
             });
 
             loadFromFirebase('timeEntries', (data) => {
                 timeEntries = data || {};
+                console.log('✅ TimeEntries cargadas');
+                checkAllLoaded();
             });
 
             loadFromFirebase('absences', (data) => {
                 absences = data || {};
+                console.log('✅ Absences cargadas');
+                checkAllLoaded();
             });
 
             loadFromFirebase('personalData', (data) => {
                 personalData = data || {};
+                console.log('✅ PersonalData cargada');
+                checkAllLoaded();
             });
 
             loadFromFirebase('checklists', (data) => {
                 checklists = data || {};
-            });
-
-            loadFromFirebase('files', (data) => {
-                userFiles = data || {};
+                console.log('✅ Checklists cargadas');
+                checkAllLoaded();
             });
         }
 
 
-        // Configurar listeners en tiempo real para sincronización
+        // ✅ CORRECCIÓN: Configurar listeners en tiempo real (mejorado)
         function setupRealtimeSync() {
-            if (!isFirebaseConfigured) return;
+            if (!isFirebaseConfigured) {
+                console.warn('⚠️ Firebase no configurado, sincronización en tiempo real deshabilitada');
+                return;
+            }
 
+            console.log('🔄 Configurando sincronización en tiempo real...');
+            
             // Escuchar cambios en teamMembers
             database.ref('teamMembers').on('value', (snapshot) => {
                 const data = snapshot.val();
-                if (data && JSON.stringify(data) !== JSON.stringify(teamMembers)) {
-                    teamMembers = data;
-                    updateLoginOptions();
-                    if (currentUser && teamMembers[currentUser]?.isLeader) {
-                        loadSupervisorDashboard();
+                if (data) {
+                    const hasChanges = JSON.stringify(data) !== JSON.stringify(teamMembers);
+                    if (hasChanges) {
+                        console.log('🔄 Sincronizando teamMembers...');
+                        teamMembers = data;
+                        updateLoginOptions();
+                        if (currentUser && teamMembers[currentUser]?.isLeader) {
+                            loadSupervisorDashboard();
+                        }
                     }
                 }
             });
@@ -1279,13 +1306,19 @@
             // Escuchar cambios en activities
             database.ref('activities').on('value', (snapshot) => {
                 const data = snapshot.val();
-                if (data && JSON.stringify(data) !== JSON.stringify(activities)) {
-                    activities = data;
+                const newActivities = data || [];
+                
+                // Solo actualizar si hay cambios reales Y los datos ya cargaron
+                const hasChanges = JSON.stringify(newActivities) !== JSON.stringify(activities);
+                if (hasChanges && dataLoaded) {
+                    console.log('🔄 Sincronizando activities...', newActivities.length, 'actividades');
+                    activities = newActivities;
+                    
                     if (currentUser) {
                         if (teamMembers[currentUser]?.isLeader) {
                             loadSupervisorDashboard();
                         } else {
-                            loadActivities();
+                            loadMyActivities();
                         }
                     }
                 }
@@ -1294,10 +1327,63 @@
             // Escuchar cambios en timeEntries
             database.ref('timeEntries').on('value', (snapshot) => {
                 const data = snapshot.val();
-                if (data && JSON.stringify(data) !== JSON.stringify(timeEntries)) {
-                    timeEntries = data;
+                const newTimeEntries = data || {};
+                
+                const hasChanges = JSON.stringify(newTimeEntries) !== JSON.stringify(timeEntries);
+                if (hasChanges && dataLoaded) {
+                    console.log('🔄 Sincronizando timeEntries...');
+                    timeEntries = newTimeEntries;
+                    
                     if (currentUser) {
                         loadTimeEntries();
+                    }
+                }
+            });
+
+            // Escuchar cambios en absences
+            database.ref('absences').on('value', (snapshot) => {
+                const data = snapshot.val();
+                const newAbsences = data || {};
+                
+                const hasChanges = JSON.stringify(newAbsences) !== JSON.stringify(absences);
+                if (hasChanges && dataLoaded) {
+                    console.log('🔄 Sincronizando absences...');
+                    absences = newAbsences;
+                    
+                    if (currentUser) {
+                        loadTimeEntries();
+                    }
+                }
+            });
+
+            // Escuchar cambios en personalData
+            database.ref('personalData').on('value', (snapshot) => {
+                const data = snapshot.val();
+                const newPersonalData = data || {};
+                
+                const hasChanges = JSON.stringify(newPersonalData) !== JSON.stringify(personalData);
+                if (hasChanges && dataLoaded) {
+                    console.log('🔄 Sincronizando personalData...');
+                    personalData = newPersonalData;
+                    
+                    if (currentUser) {
+                        loadPersonalData();
+                    }
+                }
+            });
+
+            // Escuchar cambios en checklists
+            database.ref('checklists').on('value', (snapshot) => {
+                const data = snapshot.val();
+                const newChecklists = data || {};
+                
+                const hasChanges = JSON.stringify(newChecklists) !== JSON.stringify(checklists);
+                if (hasChanges && dataLoaded) {
+                    console.log('🔄 Sincronizando checklists...');
+                    checklists = newChecklists;
+                    
+                    if (currentUser) {
+                        loadChecklist();
                     }
                 }
             });
@@ -1317,16 +1403,18 @@
             initializeData();
         });
 
-        let activities = JSON.parse(localStorage.getItem('gmActivities')) || [];
-        let checklists = JSON.parse(localStorage.getItem('gmChecklists')) || {};
-        let personalData = JSON.parse(localStorage.getItem('gmPersonalData')) || {};
-        let timeEntries = JSON.parse(localStorage.getItem('gmTimeEntries')) || {};
-        let absences = JSON.parse(localStorage.getItem('gmAbsences')) || {};
+        // ✅ CORRECCIÓN 2: Inicializar vacío, se llenará SOLO desde Firebase
+        let activities = [];
+        let checklists = {};
+        let personalData = {};
+        let timeEntries = {};
+        let absences = {};
+        let userFiles = {};
         let currentViewingMember = null;
         let globalChartInstance = null;
         let memberChartInstance = null;
 
-        updateLoginOptions();
+        // ✅ CORRECCIÓN 5: Eliminado updateLoginOptions() - se llama en initializeData()
 
         function updateLoginOptions() {
             const select = document.getElementById('userSelect');
@@ -1342,14 +1430,21 @@
                 option.textContent = `${member.name} (${role})`;
                 select.appendChild(option);
             });
-        }">${member.name} (${member.role})</option>`;
-            }
         }
 
-        document.getElementById('userSelect').addEventListener('change', function() {
-            const selectedUser = this.value;
-            document.getElementById('passwordGroup').style.display = 
-                (selectedUser && requiresPassword(selectedUser)) ? 'block' : 'none';
+        // Event listener para mostrar campo de contraseña cuando se selecciona iran
+        document.addEventListener('DOMContentLoaded', function() {
+            const userSelect = document.getElementById('userSelect');
+            if (userSelect) {
+                userSelect.addEventListener('change', function() {
+                    const selectedUser = this.value;
+                    const passwordGroup = document.getElementById('passwordGroup');
+                    if (passwordGroup) {
+                        passwordGroup.style.display = 
+                            (selectedUser && requiresPassword(selectedUser)) ? 'block' : 'none';
+                    }
+                });
+            }
         });
 
         document.getElementById('loginForm').addEventListener('submit', function(e) {
@@ -2403,25 +2498,47 @@
         }
 
         // Funciones auxiliares para Firebase
+        // ✅ CORRECCIÓN 3: Funciones auxiliares para Firebase (SIN localStorage)
         function saveToFirebase(path, data) {
             if (!isFirebaseConfigured) {
-                console.warn('Firebase no configurado, guardando en localStorage');
-                localStorage.setItem('gm' + path.charAt(0).toUpperCase() + path.slice(1), JSON.stringify(data));
-                return Promise.resolve();
+                console.error('❌ Firebase no configurado - No se pueden guardar datos');
+                alert('⚠️ Error: Firebase no está configurado. Los datos NO se guardarán.');
+                return Promise.reject(new Error('Firebase not configured'));
             }
-            return database.ref(path).set(data);
+            
+            console.log(`💾 Guardando en Firebase: ${path}`);
+            
+            return database.ref(path).set(data)
+                .then(() => {
+                    console.log(`✅ Guardado exitoso: ${path}`);
+                    return true;
+                })
+                .catch((error) => {
+                    console.error(`❌ Error al guardar en Firebase (${path}):`, error);
+                    alert(`⚠️ Error al guardar datos: ${error.message}`);
+                    throw error;
+                });
         }
 
+        // ✅ CORRECCIÓN 4: loadFromFirebase SIN localStorage
         function loadFromFirebase(path, callback) {
             if (!isFirebaseConfigured) {
-                const localData = localStorage.getItem('gm' + path.charAt(0).toUpperCase() + path.slice(1));
-                callback(localData ? JSON.parse(localData) : null);
+                console.error('❌ Firebase no configurado - No se pueden cargar datos');
+                callback(null);
                 return;
             }
             
-            database.ref(path).on('value', (snapshot) => {
-                callback(snapshot.val());
-            });
+            // Usar .once() para carga inicial (evita listeners duplicados)
+            database.ref(path).once('value')
+                .then((snapshot) => {
+                    const data = snapshot.val();
+                    console.log(`✅ Datos cargados de Firebase: ${path}`, data ? '✓' : 'vacío');
+                    callback(data);
+                })
+                .catch((error) => {
+                    console.error(`❌ Error al cargar de Firebase (${path}):`, error);
+                    callback(null);
+                });
         }
 
         // Sistema de contraseñas
