@@ -779,6 +779,59 @@
             0%, 100% { transform: scale(1); opacity: 1; }
             50% { transform: scale(1.05); opacity: 0.9; }
         }
+
+        /* ✅ Botón Flotante de Tareas */
+        .floating-task-btn {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            border-radius: 50%;
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: all 0.3s;
+            animation: bounce 2s infinite;
+            border: 4px solid white;
+        }
+
+        .floating-task-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 35px rgba(255, 107, 107, 0.7);
+        }
+
+        .floating-task-btn-icon {
+            font-size: 35px;
+            animation: pulse 2s infinite;
+        }
+
+        .floating-task-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #2ecc71;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+            border: 3px solid white;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
     </style>
 </head>
 <body>
@@ -801,6 +854,12 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- ✅ Botón Flotante para Reabrir Tareas -->
+    <div class="floating-task-btn" id="floatingTaskBtn" onclick="showUrgentTaskModal()">
+        <div class="floating-task-btn-icon">📋</div>
+        <div class="floating-task-badge">6</div>
     </div>
 
     <div class="login-screen" id="loginScreen">
@@ -1644,7 +1703,7 @@
             showDashboard();
         });
 
-        // ✅ TAREAS URGENTES POR USUARIO
+        // ✅ TAREAS URGENTES POR USUARIO (IDs CORREGIDOS)
         const urgentTasks = {
             'iran': {
                 title: 'Iran Arely Gomez Reyes - Líder IA',
@@ -1652,14 +1711,14 @@
                     'AI Strategy + Ejercicio SEMILLA'
                 ]
             },
-            'luis': {
-                title: 'Luis Guillermo Gallardo Hernandez (Lalito)',
+            'eduardo': {  // ← CORREGIDO: Lalito = eduardo
+                title: 'Eduardo Mulhia (Lalito)',
                 tasks: [
                     'Creación de agente',
                     'Proyecto FA Blocks'
                 ]
             },
-            'fernando': {
+            'fernando': {  // ← CORRECTO: Fer = fernando
                 title: 'Fernando Rosales Medina (Fer)',
                 tasks: [
                     'Creación de agente',
@@ -1667,7 +1726,7 @@
                     'Proyecto de FA Blocks'
                 ]
             },
-            'carlos': {
+            'carlos': {  // ← CORREGIDO: Charlie = carlos
                 title: 'Carlos Ruben Cedillo Pichardo (Charlie)',
                 tasks: [
                     'VR',
@@ -1676,7 +1735,7 @@
                     'CP auditoría'
                 ]
             },
-            'sofia': {
+            'sofia': {  // ← CORRECTO: Sofia = sofia
                 title: 'Sofia Guerrero Moreno',
                 tasks: [
                     'Training',
@@ -1684,7 +1743,7 @@
                     'Creación de agente'
                 ]
             },
-            'manuel': {
+            'manuel': {  // ← CORREGIDO: Manu = manuel
                 title: 'Manuel Delgado Espinoza',
                 tasks: [
                     'Creación de agente',
@@ -1693,33 +1752,87 @@
             }
         };
 
-        // Función para mostrar el modal urgente
-        function showUrgentTaskModal(userId) {
-            const userTasks = urgentTasks[userId];
+        // Función para generar HTML de TODAS las tareas
+        function getAllTasksHTML() {
+            let html = '<div style="max-height: 50vh; overflow-y: auto;">';
             
-            if (!userTasks) {
-                // Si el usuario no tiene tareas específicas, no mostrar el modal
-                return;
-            }
+            // Iterar sobre todos los usuarios con tareas
+            Object.keys(urgentTasks).forEach(userId => {
+                const userTask = urgentTasks[userId];
+                html += `
+                    <div style="margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px; border-left: 5px solid #667eea;">
+                        <h3 style="color: #005baa; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                            👤 ${userTask.title}
+                        </h3>
+                        <ul class="task-list" style="list-style: none; padding: 0; margin: 0;">
+                            ${userTask.tasks.map(task => `
+                                <li class="task-item" style="background: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; font-size: 15px; border-left: 3px solid #2ecc71;">
+                                    <span style="font-size: 18px;">⚡</span>
+                                    ${task}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            return html;
+        }
 
+        // Función para mostrar el modal urgente (MEJORADA - TODAS LAS TAREAS)
+        function showUrgentTaskModal() {
+            console.log('🚨 showUrgentTaskModal llamada - MOSTRANDO TODAS LAS TAREAS');
+            
+            const modalElement = document.getElementById('urgentTaskModal');
             const modalBody = document.getElementById('urgentTaskBody');
             
+            if (!modalElement) {
+                console.error('❌ ERROR: No se encontró el elemento urgentTaskModal');
+                return;
+            }
+            
+            if (!modalBody) {
+                console.error('❌ ERROR: No se encontró el elemento urgentTaskBody');
+                return;
+            }
+            
+            // Mostrar TODAS las tareas de TODOS
             modalBody.innerHTML = `
-                <h3>👤 ${userTasks.title}</h3>
-                <ul class="task-list">
-                    ${userTasks.tasks.map(task => `
-                        <li class="task-item">${task}</li>
-                    `).join('')}
-                </ul>
+                <h3 style="color: #005baa; font-size: 24px; margin-bottom: 20px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    📋 TAREAS URGENTES DE TODO EL EQUIPO
+                </h3>
+                ${getAllTasksHTML()}
             `;
 
             // Mostrar el modal
-            document.getElementById('urgentTaskModal').classList.add('active');
+            console.log('✅ Mostrando modal...');
+            modalElement.classList.add('active');
+            modalElement.style.display = 'flex';
+            
+            // Ocultar botón flotante
+            const floatingBtn = document.getElementById('floatingTaskBtn');
+            if (floatingBtn) {
+                floatingBtn.style.display = 'none';
+            }
+            
+            console.log('✅ Modal mostrado exitosamente');
         }
 
         // Función para cerrar el modal
         function closeUrgentModal() {
-            document.getElementById('urgentTaskModal').classList.remove('active');
+            console.log('🔒 Cerrando modal...');
+            const modalElement = document.getElementById('urgentTaskModal');
+            if (modalElement) {
+                modalElement.classList.remove('active');
+                modalElement.style.display = 'none';
+            }
+            
+            // Mostrar botón flotante
+            const floatingBtn = document.getElementById('floatingTaskBtn');
+            if (floatingBtn) {
+                floatingBtn.style.display = 'flex';
+            }
         }
 
         // Cerrar modal al hacer click fuera de él
@@ -1731,7 +1844,11 @@
         });
 
         function showDashboard() {
+            console.log('📊 showDashboard llamada para usuario:', currentUser);
+            
             const user = teamMembers[currentUser];
+            console.log('👤 Usuario encontrado:', user);
+            
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainDashboard').classList.add('active');
             document.getElementById('userName').textContent = user.name;
@@ -1755,8 +1872,10 @@
             }
 
             // ✅ Mostrar modal de tareas urgentes después de 500ms
+            console.log('⏰ Programando modal para mostrar en 500ms...');
             setTimeout(() => {
-                showUrgentTaskModal(currentUser);
+                console.log('🎬 Ejecutando showUrgentTaskModal ahora...');
+                showUrgentTaskModal(); // SIN parámetro - muestra TODAS las tareas
             }, 500);
         }
 
