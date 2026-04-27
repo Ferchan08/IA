@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <!-- saved from url=(0044)https://chimerical-genie-523689.netlify.app/ -->
 <html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -911,6 +912,7 @@
                 <button class="nav-tab" onclick="switchTab(&#39;hours&#39;)">⏰ Control de Horas</button>
                 <button class="nav-tab" onclick="switchTab(&#39;personal&#39;)">👤 Datos Personales</button>
                 <button class="nav-tab" onclick="switchTab(&#39;checklist&#39;)">📋 Check List</button>
+                <button class="nav-tab" onclick="switchTab('goals')">🎯 Objetivos</button>
             </div>
 
             <!-- Tab: Activities -->
@@ -1126,7 +1128,40 @@
                 </div>
             </div>
         </div>
-
+<!-- Tab: Goals -->
+<div id="tab-goals" class="tab-content">
+    <div class="section">
+      <h2>🎯 Objetivos (3 meses)</h2>
+  
+      <div class="form-group">
+        <label>Objetivo compartido del equipo (3 meses)</label>
+        <textarea id="sharedGoal" rows="3" placeholder="Describe el objetivo en grupo para todo el equipo"
+                  onchange="saveObjectives()" oninput="saveObjectives()"></textarea>
+      </div>
+  
+      <div class="form-group">
+        <label>Fecha meta del objetivo compartido</label>
+        <input type="date" id="sharedTargetDate" onchange="saveObjectives()">
+      </div>
+  
+      <hr style="margin: 25px 0; border: none; border-top: 1px solid #eee;">
+  
+      <div class="form-group">
+        <label>Tu objetivo individual (3 meses)</label>
+        <textarea id="personalGoal" rows="3" placeholder="Escribe tu objetivo personal"
+                  onchange="saveObjectives()" oninput="saveObjectives()"></textarea>
+      </div>
+  
+      <div class="form-group">
+        <label>Avance de tu objetivo individual: <span id="progressLabel">0%</span></label>
+        <input type="range" id="personalProgress" min="0" max="100" value="0"
+               oninput="updateProgressBar(); saveObjectives()">
+        <div style="height: 18px; background: #eee; border-radius: 10px; overflow: hidden; margin-top: 8px;">
+          <div id="progressBar" style="height: 100%; width: 0%; background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
         <!-- Supervisor Dashboard -->
         <div id="supervisorDashboard" style="display: none;">
             <div class="nav-tabs">
@@ -1451,7 +1486,7 @@
             console.log('🔄 Iniciando carga de datos desde Firebase...');
             
             let loadCount = 0;
-            const totalLoads = 6;
+            const totalLoads = 7;
             
             function checkAllLoaded() {
                 loadCount++;
@@ -1505,6 +1540,11 @@
                 console.log('✅ Checklists cargadas');
                 checkAllLoaded();
             });
+            loadFromFirebase('objectives', (data) => {
+            objectives = data || {};
+            console.log('✅ Objectives cargados');
+            checkAllLoaded();
+            });
         }
 
 
@@ -1553,7 +1593,19 @@
                     }
                 }
             });
-
+            // Escuchar cambios en objectives
+            database.ref('objectives').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const newObjectives = data || {};
+            const hasChanges = JSON.stringify(newObjectives) !== JSON.stringify(objectives);
+            if (hasChanges && dataLoaded) {
+                console.log('🔄 Sincronizando objectives...');
+                objectives = newObjectives;
+                if (currentUser) {
+                loadObjectives();
+                }
+            }
+            });
             // Escuchar cambios en timeEntries
             database.ref('timeEntries').on('value', (snapshot) => {
                 const data = snapshot.val();
@@ -1643,6 +1695,7 @@
         let currentViewingMember = null;
         let globalChartInstance = null;
         let memberChartInstance = null;
+        let objectives = {};
 
         // ✅ CORRECCIÓN 5: Eliminado updateLoginOptions() - se llama en initializeData()
 
@@ -1653,12 +1706,14 @@
             select.innerHTML = '<option value="">-- Selecciona --</option>';
             
             Object.keys(teamMembers).forEach(id => {
-                const member = teamMembers[id];
-                const role = member.isLeader ? 'Líder IA' : member.role;
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = `${member.name} (${role})`;
-                select.appendChild(option);
+            const member = teamMembers[id];
+            if (member.name === 'Supervisor GM') return; // ocultar
+
+            const role = member.isLeader ? 'Líder IA' : member.role;
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = `${member.name} (${role})`;
+            select.appendChild(option);
             });
         }
 
@@ -1871,21 +1926,68 @@
                 loadBecarioDashboard();
             }
 
-            // ✅ Mostrar modal de tareas urgentes después de 500ms
-            console.log('⏰ Programando modal para mostrar en 500ms...');
-            setTimeout(() => {
-                console.log('🎬 Ejecutando showUrgentTaskModal ahora...');
-                showUrgentTaskModal(); // SIN parámetro - muestra TODAS las tareas
-            }, 500);
+            
         }
 
         function loadBecarioDashboard() {
-            loadChecklist();
-            loadPersonalData();
-            loadTimeEntries();
-            loadMyActivities();
+        loadChecklist();
+        loadPersonalData();
+        loadTimeEntries();
+        loadMyActivities();
+        loadObjectives(); // <-- agrega esto
+        }
+        
+        function loadObjectives() {
+        const shared = objectives.shared || {};
+        const byUser = objectives.byUser || {};
+        const userObj = byUser[currentUser] || {};
+
+        const sharedGoalEl = document.getElementById('sharedGoal');
+        const sharedDateEl = document.getElementById('sharedTargetDate');
+        const personalGoalEl = document.getElementById('personalGoal');
+        const progressEl = document.getElementById('personalProgress');
+
+        if (!sharedGoalEl) return; // pestaña aún no montada
+
+        sharedGoalEl.value = shared.goal || '';
+        sharedDateEl.value = shared.targetDate || '';
+
+        personalGoalEl.value = userObj.personalGoal || '';
+        progressEl.value = userObj.progress != null ? userObj.progress : 0;
+
+        updateProgressBar();
         }
 
+        function saveObjectives() {
+        if (!objectives.shared) objectives.shared = {};
+        if (!objectives.byUser) objectives.byUser = {};
+
+        const sharedGoalEl = document.getElementById('sharedGoal');
+        const sharedDateEl = document.getElementById('sharedTargetDate');
+        const personalGoalEl = document.getElementById('personalGoal');
+        const progressEl = document.getElementById('personalProgress');
+
+        objectives.shared.goal = sharedGoalEl.value;
+        objectives.shared.targetDate = sharedDateEl.value;
+        objectives.byUser[currentUser] = {
+            personalGoal: personalGoalEl.value,
+            progress: parseInt(progressEl.value) || 0
+        };
+
+        saveToFirebase('objectives', objectives);
+        updateProgressBar();
+        }
+
+        function updateProgressBar() {
+        const progressEl = document.getElementById('personalProgress');
+        const labelEl = document.getElementById('progressLabel');
+        const barEl = document.getElementById('progressBar');
+        if (!progressEl || !labelEl || !barEl) return;
+
+        const value = parseInt(progressEl.value) || 0;
+        labelEl.textContent = value + '%';
+        barEl.style.width = value + '%';
+        }
         function loadChecklist() {
             const container = document.getElementById('checklistContainer');
             const userChecklist = checklists[currentUser] || {};
@@ -1950,23 +2052,30 @@
         function uploadCV() {
             const file = document.getElementById('cvUpload').files[0];
             if (!file) return;
-            
-            if (!personalData[currentUser]) personalData[currentUser] = {};
-            personalData[currentUser].cvFileName = file.name;
-            saveToFirebase('personalData', personalData);
+
+            const reader = new FileReader();
+             reader.onload = function(e) {
+              if (!personalData[currentUser]) personalData[currentUser] = {};
+             personalData[currentUser].cvFileName = file.name;
+             personalData[currentUser].cvFileData = e.target.result; // DataURL base64
+
+             saveToFirebase('personalData', personalData);
             loadPersonalData();
             alert('✅ CV subido correctamente');
-        }
+  };
+  reader.readAsDataURL(file);
+}
 
-        function deleteCV() {
-            if (confirm('¿Eliminar CV?')) {
-                if (personalData[currentUser]) {
-                    delete personalData[currentUser].cvFileName;
-                    saveToFirebase('personalData', personalData);
-                    loadPersonalData();
-                }
-            }
-        }
+function deleteCV() {
+  if (confirm('¿Eliminar CV?')) {
+    if (personalData[currentUser]) {
+      delete personalData[currentUser].cvFileName;
+      delete personalData[currentUser].cvFileData; // <-- agrega esto
+      saveToFirebase('personalData', personalData);
+      loadPersonalData();
+    }
+  }
+}
 
         function isHoliday(dateStr) {
             const monthDay = dateStr.substring(5);
@@ -2375,6 +2484,7 @@
         function loadTeamGrid() {
             const container = document.getElementById('teamGridSupervisor');
             container.innerHTML = Object.entries(teamMembers).map(([key, member]) => {
+                if (member.name === 'Supervisor GM') return '';
                 const img = member.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=random&size=240`;
                 const leaderClass = member.isLeader ? 'leader' : '';
                 
@@ -2473,11 +2583,18 @@
             
             info.innerHTML = `
                 <div style="display: grid; gap: 25px;">
+
                     <div class="file-item">
-                        <span style="font-weight: 600;">📄 Curriculum Vitae</span>
-                        <span style="color: ${data.cvFileName ? '#27ae60' : '#999'}; font-weight: 600;">
-                            ${data.cvFileName || 'No cargado'}
+                    <span style="font-weight: 600;">📄 Curriculum Vitae</span>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                     <span style="color: ${data.cvFileName ? '#27ae60' : '#999'}; font-weight: 600;">
+                      ${data.cvFileName || 'No cargado'}
                         </span>
+                        ${data.cvFileName && data.cvFileData ? `
+                        <button class="btn" style="background:#667eea; padding:6px 14px; font-size:13px;"
+                                onclick="downloadMemberCV('${memberId}')">⬇️ Ver / Descargar</button>
+                        ` : ''}
+                    </div>
                     </div>
                     
                     <div class="file-item">
@@ -2517,7 +2634,19 @@
                 </div>
             `;
         }
-
+        function downloadMemberCV(memberId) {
+            const data = personalData[memberId];
+            if (!data || !data.cvFileData || !data.cvFileName) {
+                alert('Este miembro no tiene CV cargado.');
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = data.cvFileData;
+            link.download = data.cvFileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            }
         function loadMemberActivities(memberId) {
             const memberActivities = activities.filter(a => a.user === memberId);
             displayActivities(memberActivities, 'memberActivitiesList', false);
