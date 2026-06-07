@@ -341,6 +341,7 @@
             <select id="userSelect" required>
                 <option value="">-- Selecciona --</option>
                 <option value="iran">Iran Arely Gomez Reyes (Líder IA)</option>
+<option value="ricardo">Ricardo (Supervisor)</option>
                 <option value="carlos">Carlos Ruben Cedillo Pichardo (Becario)</option>
                 <option value="eduardo">Eduardo Mulhia (Becario)</option>
                 <option value="kevin">Kevin Orejel Becerril (Becario)</option>
@@ -805,6 +806,7 @@
                 <button class="nav-tab" onclick="switchMemberTab('info', event)">ℹ️ Información</button>
                 <button class="nav-tab" onclick="switchMemberTab('hours', event)">⏰ Horas</button>
                 <button class="nav-tab" onclick="switchMemberTab('checklist', event)">📋 Check List</button>
+                <button class="nav-tab" onclick="switchMemberTab('objectives', event)">🎯 Objetivos</button>
             </div>
             <div id="member-tab-charts" class="tab-content active">
                 <div class="section">
@@ -829,6 +831,12 @@
                     <h2>📋 Check List de <span id="memberNameChecklist"></span></h2>
                     <p style="color:#666; margin-bottom:22px;">Vista de solo lectura del progreso de integración del miembro.</p>
                     <div class="checklist" id="memberChecklistContainer"></div>
+                </div>
+            </div>
+            <div id="member-tab-objectives" class="tab-content">
+                <div class="section">
+                    <h2>🎯 Objetivo Personal de <span id="memberNameObjectives"></span></h2>
+                    <div id="memberObjectivesInfo"></div>
                 </div>
             </div>
         </div>
@@ -981,6 +989,7 @@ const teamImages = {brandon:'data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4
 
 const defaultTeamMembers = {
     iran:    { name: 'Iran Arely Gomez Reyes',          role: 'Líder IA',  image: null, isLeader: true  },
+    ricardo: { name: 'Ricardo',                          role: 'Supervisor', image: null, isLeader: true  },
     carlos:  { name: 'Carlos Ruben Cedillo Pichardo',   role: 'Becario',   image: null, isLeader: false },
     eduardo: { name: 'Eduardo Mulhia',                  role: 'Becario',   image: null, isLeader: false },
     kevin:   { name: 'Kevin Orejel Becerril',           role: 'Becario',   image: null, isLeader: false },
@@ -1805,6 +1814,36 @@ function switchMemberTab(tab, event) {
     if(event&&event.target) event.target.classList.add('active');
     document.getElementById(`member-tab-${tab}`).classList.add('active');
     if(tab==='checklist') loadMemberChecklist(currentViewingMember);
+    if(tab==='objectives') loadMemberObjectives(currentViewingMember);
+}
+
+function loadMemberObjectives(memberId) {
+    if (!memberId) return;
+    const member = teamMembers[memberId];
+    const nameEl = document.getElementById('memberNameObjectives');
+    if (nameEl) nameEl.textContent = member ? member.name : '';
+    const c = document.getElementById('memberObjectivesInfo');
+    if (!c) return;
+    const obj = (objectives[memberId]) || null;
+    if (!obj || !obj.description) {
+        c.innerHTML = '<p style="text-align:center;color:#bbb;padding:40px;font-size:15px;">Este miembro aún no tiene un objetivo personal definido.</p>';
+        return;
+    }
+    const pct = Math.min(100, Math.max(0, obj.progress || 0));
+    c.innerHTML = `
+        <div class="objective-card personal-obj">
+            <h3 style="color:#2ecc71; font-size:18px; margin-bottom:10px;">🎯 ${obj.description}</h3>
+            <div class="progress-wrap">
+                <div class="progress-label"><span>Progreso</span><span>${pct}%</span></div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width:${pct}%">${pct}%</div>
+                </div>
+            </div>
+            <div class="obj-meta">
+                ${obj.startDate ? `<span>📅 Inicio: <strong>${obj.startDate}</strong></span>` : ''}
+                ${obj.endDate   ? `<span>⏳ Fin: <strong>${obj.endDate}</strong></span>`     : ''}
+            </div>
+        </div>`;
 }
 
 // ─────────────────────────────────────────────
